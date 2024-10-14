@@ -3,6 +3,7 @@
 Version: 0.0.1
 
 Description:
+
 The NoDrop plugin ensures that player inventories are saved when they die or disconnect, and their items are restored upon respawn without dropping any held items during wounding or death.
 
 Features
@@ -26,7 +27,9 @@ Inventory Restoration: Upon respawn, if a player has saved inventory data, it is
 Wipe Handling: When a server wipe occurs, all saved player data is wiped as well, ensuring no old inventory data persists across wipes.
 
 Known Issues
+
 Currently, there are no known issues. Please report any problems via the plugin’s repository or support channel.
 
 License
+
 This project is licensed under the Apache license 2.0

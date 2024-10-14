@@ -8,8 +8,8 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("NoDrop", "CTS Kael", "0.0.1")]
-    [Description("Saves and restores player inventories after death/disconnection, without dropping items.")]
+    [Info("NoDrop", "CTS Kael", "0.0.4")]
+    [Description("Saves and restores player inventories after death/disconnection, with configurable options.")]
     class NoDrop : RustPlugin
     {
         #region Fields
@@ -18,12 +18,15 @@ namespace Oxide.Plugins
         private bool wipeDataOnWipe = false;
 
         private const string DataDirectory = "NoDrop";
+        private PluginConfig config;
         #endregion
 
         #region Oxide Hooks
 
         private void OnServerInitialized()
         {
+            // Ensure the config is loaded properly
+            LoadConfigValues();
             LoadData();
         }
 
@@ -41,43 +44,106 @@ namespace Oxide.Plugins
         {
             if (player == null || !player.userID.IsSteamId()) return;
 
+            // Check if death was by suicide and whether we should restore inventory
+            if (info != null && info.damageTypes.GetMajorityDamageType() == Rust.DamageType.Suicide && !config.RestoreOnSuicide)
+            {
+                Puts($"Player {player.displayName} committed suicide. Not restoring inventory as per config.");
+                return;
+            }
+
             // Log that we are attempting to save the player's inventory on death
             Puts($"Player {player.displayName} ({player.UserIDString}) died, saving inventory.");
-
-            // Save inventory even though the player is dead
             SavePlayerInventory(player);
-        }
 
-        private void OnPlayerDisconnected(BasePlayer player, string reason)
-        {
-            if (player == null || !player.userID.IsSteamId()) return;
-
-            // Only save the player's inventory if they are alive
-            if (!player.IsDead())
+            // Strip corpse to avoid duplication
+            NextTick(() =>
             {
-                Puts($"Player {player.displayName} ({player.UserIDString}) is disconnecting while alive. Saving inventory...");
-                SavePlayerInventory(player);  // Save inventory if the player is alive
-            }
-            else
-            {
-                Puts($"Player {player.displayName} ({player.UserIDString}) is dead, skipping inventory save on disconnect.");
-            }
+                var corpse = FindPlayerCorpse(player.userID);
+                if (corpse != null)
+                {
+                    StripCorpseItems(corpse);
+                }
+            });
         }
-
 
         private void OnPlayerRespawned(BasePlayer player)
         {
             if (player == null || !player.userID.IsSteamId()) return;
+
+            // Remove starting Rock and Torch from the player's belt
+            StripContainer(player.inventory.containerBelt);
+
+            // Restore the player's saved inventory
             RestorePlayerInventory(player);
         }
 
-        // New Hook to prevent active item from dropping when wounded or killed
+        // Function to remove all items from a container (e.g., belt or wear)
+        private void StripContainer(ItemContainer container)
+        {
+            for (int i = container.itemList.Count - 1; i >= 0; i--)
+            {
+                var item = container.itemList[i];
+                item.RemoveFromContainer();  // Remove from the container
+                item.Remove();               // Delete the item
+            }
+        }
+
+
+        // Handle active item drop based on config
         private object CanDropActiveItem(BasePlayer player)
         {
             if (player == null || !player.userID.IsSteamId()) return null;
 
-            // Prevent the active item from being dropped
-            return false;  // Returning false prevents the item from dropping
+            if (!config.DropHeldItemOnDeath)
+            {
+                return false;  // Prevent the active item from being dropped
+            }
+
+            return null;  // Allow the default behavior (drop item)
+        }
+
+        #endregion
+
+        #region Config Management
+
+        private class PluginConfig
+        {
+            [JsonProperty("Drop Held Item on Death")]
+            public bool DropHeldItemOnDeath { get; set; } = false;
+
+            [JsonProperty("Restore Inventory on Suicide")]
+            public bool RestoreOnSuicide { get; set; } = true;
+        }
+
+        protected override void LoadConfig()
+        {
+            base.LoadConfig();
+            try
+            {
+                config = Config.ReadObject<PluginConfig>();
+            }
+            catch
+            {
+                PrintError("Error reading configuration file! Generating new config.");
+                LoadDefaultConfig();  // Generate a default config to avoid null issues
+            }
+        }
+
+        protected override void LoadDefaultConfig() => config = new PluginConfig();
+
+        protected override void SaveConfig() => Config.WriteObject(config, true);
+
+        private void LoadConfigValues()
+        {
+            // Make sure the config is not null before trying to access it
+            if (config == null)
+            {
+                PrintError("Config not loaded, creating a new one.");
+                LoadDefaultConfig();
+                SaveConfig();
+            }
+
+            Puts($"Loaded config: DropHeldItemOnDeath = {config.DropHeldItemOnDeath}, RestoreOnSuicide = {config.RestoreOnSuicide}");
         }
 
         #endregion
@@ -91,7 +157,6 @@ namespace Oxide.Plugins
             inventoryDataFile = Interface.Oxide.DataFileSystem.GetFile(DataDirectory);
             playerInventories = inventoryDataFile.ReadObject<Dictionary<ulong, PlayerInventoryData>>() ?? new Dictionary<ulong, PlayerInventoryData>();
 
-            // Log the number of inventories loaded for debugging
             Puts($"Loaded {playerInventories.Count} player inventories.");
 
             if (wipeDataOnWipe)
@@ -101,27 +166,13 @@ namespace Oxide.Plugins
             }
         }
 
-
         private void SaveData()
         {
             inventoryDataFile.WriteObject(playerInventories);
         }
 
-        private void WipeData()
-        {
-            playerInventories.Clear();
-            SaveData();
-        }
-
         private void SavePlayerInventory(BasePlayer player)
         {
-            if (player == null)
-            {
-                Puts("Player is null, skipping inventory save.");
-                return;
-            }
-
-            // Removed the IsDead check to allow saving the inventory after death
             var inventoryData = new PlayerInventoryData
             {
                 main = GetItemList(player.inventory.containerMain),
@@ -129,16 +180,10 @@ namespace Oxide.Plugins
                 wear = GetItemList(player.inventory.containerWear)
             };
 
-            // Log the inventory contents for debugging
-            Puts($"Saving inventory for {player.displayName} ({player.UserIDString}): " +
-                 $"Main: {inventoryData.main.Count} items, Belt: {inventoryData.belt.Count} items, Wear: {inventoryData.wear.Count} items.");
-
             playerInventories[player.userID] = inventoryData;
             SaveData();
-            Puts($"Successfully saved inventory for {player.displayName} ({player.UserIDString})");
+            Puts($"Successfully saved inventory for {player.displayName}.");
         }
-
-
 
         private void RestorePlayerInventory(BasePlayer player)
         {
@@ -149,12 +194,8 @@ namespace Oxide.Plugins
                 RestoreItemList(player.inventory.containerWear, inventoryData.wear);
 
                 player.ChatMessage("Your inventory has been restored.");
-                playerInventories.Remove(player.userID); // Optional: Remove data after restoration
+                playerInventories.Remove(player.userID);
                 SaveData();
-            }
-            else
-            {
-                Puts($"No inventory data found for {player.displayName} ({player.UserIDString})");
             }
         }
 
@@ -162,22 +203,43 @@ namespace Oxide.Plugins
 
         #region Helper Functions
 
-        private List<ItemData> GetItemList(ItemContainer container)
-        {
-            return container?.itemList.Select(item => new ItemData(item)).ToList() ?? new List<ItemData>();
-        }
+        private List<ItemData> GetItemList(ItemContainer container) => container?.itemList.Select(item => new ItemData(item)).ToList() ?? new List<ItemData>();
 
         private void RestoreItemList(ItemContainer container, List<ItemData> items)
         {
             foreach (var itemData in items)
             {
                 var item = ItemManager.CreateByItemID(itemData.itemId, itemData.amount, itemData.skin);
-                if (item != null)
+                item.condition = itemData.condition;
+                item.MoveToContainer(container, itemData.position);
+            }
+        }
+
+        private PlayerCorpse FindPlayerCorpse(ulong userID)
+        {
+            foreach (var entity in BaseNetworkable.serverEntities)
+            {
+                var corpse = entity as PlayerCorpse;
+                if (corpse != null && corpse.playerSteamID == userID)
                 {
-                    item.condition = itemData.condition;
-                    item.MoveToContainer(container, itemData.position);
+                    return corpse;
                 }
             }
+            return null;
+        }
+
+        private void StripCorpseItems(PlayerCorpse corpse)
+        {
+            foreach (var container in corpse.containers)
+            {
+                for (int i = container.itemList.Count - 1; i >= 0; i--)
+                {
+                    var item = container.itemList[i];
+                    item.RemoveFromContainer();
+                    item.Remove();
+                }
+            }
+            Puts($"Corpse items for {corpse.playerName} have been deleted.");
         }
 
         #endregion
@@ -198,8 +260,6 @@ namespace Oxide.Plugins
             public ulong skin;
             public float condition;
             public int position;
-
-            public ItemData() { }
 
             public ItemData(Item item)
             {

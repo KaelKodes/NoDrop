@@ -1,20 +1,24 @@
 using System;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
 using Newtonsoft.Json;
 using Oxide.Core;
 using Oxide.Core.Configuration;
 using UnityEngine;
-// 0.0.8 Code Cleaned Up 
+
+// 0.1.1 Added Configurable Wipe Options - Code Cleaned Up
 namespace Oxide.Plugins
 {
-    [Info("NoDrop", "CTS Kael", "0.0.8")]
-    [Description("Saves and restores player inventories after death/disconnection, with configurable options.")]
+    [Info("NoDrop", "CTS Kael", "0.1.1")]
+    [Description(
+        "Saves and restores player inventories after death/disconnection, with configurable options."
+    )]
     class NoDrop : RustPlugin
     {
         #region Fields
         private DynamicConfigFile inventoryDataFile;
-        private Dictionary<ulong, PlayerInventoryData> playerInventories = new Dictionary<ulong, PlayerInventoryData>();
+        private Dictionary<ulong, PlayerInventoryData> playerInventories =
+            new Dictionary<ulong, PlayerInventoryData>();
         private bool wipeDataOnWipe = false;
         private const int SmallBackpackItemId = 2068884361; // ID for Small Backpack
         private const int LargeBackpackItemId = -907422733; // ID for Large Backpack
@@ -50,17 +54,30 @@ namespace Oxide.Plugins
 
         private void OnNewSave(string filename)
         {
-            wipeDataOnWipe = true;
-            Puts("Wipe detected, clearing all inventory data.");
+            wipeDataOnWipe = !config.RestoreInventoryOnWipe;
+
+            if (wipeDataOnWipe)
+                Puts("Wipe detected, inventory data will be cleared as per config.");
+            else
+                Puts("Wipe detected, but inventory will be preserved (Restore Inventory on Wipe: true).");
         }
+
+
         private void OnEntityDeath(BasePlayer player, HitInfo info)
         {
-            if (player == null || !player.userID.IsSteamId()) return;
+            if (player == null || !player.userID.IsSteamId())
+                return;
 
             // Check if death was by suicide and whether we should restore inventory
-            if (info != null && info.damageTypes.GetMajorityDamageType() == Rust.DamageType.Suicide && !config.RestoreOnSuicide)
+            if (
+                info != null
+                && info.damageTypes.GetMajorityDamageType() == Rust.DamageType.Suicide
+                && !config.RestoreOnSuicide
+            )
             {
-                Puts($"Player {player.displayName} committed suicide. Not restoring inventory as per config.");
+                Puts(
+                    $"Player {player.displayName} committed suicide. Not restoring inventory as per config."
+                );
                 return;
             }
 
@@ -80,8 +97,8 @@ namespace Oxide.Plugins
                 var corpse = FindPlayerCorpse(player.userID);
                 if (corpse != null)
                 {
-                    StripCorpseItems(corpse);  // Strip items from the corpse
-                    corpse.Kill();  // Explicitly delete the corpse once
+                    StripCorpseItems(corpse); // Strip items from the corpse
+                    corpse.Kill(); // Explicitly delete the corpse once
                     Puts($"Corpse for {corpse.playerName} has been deleted.");
                 }
             });
@@ -94,25 +111,35 @@ namespace Oxide.Plugins
             List<Item> itemsToKeepEquipped = new List<Item>();
 
             // Iterate through player's belt and wear inventory to find the backpack
-            foreach (var item in player.inventory.containerBelt.itemList.Concat(player.inventory.containerWear.itemList))
+            foreach (
+                var item in player.inventory.containerBelt.itemList.Concat(
+                    player.inventory.containerWear.itemList
+                )
+            )
             {
-                if (item.info.itemid == SmallBackpackItemId || item.info.itemid == LargeBackpackItemId)
+                if (
+                    item.info.itemid == SmallBackpackItemId
+                    || item.info.itemid == LargeBackpackItemId
+                )
                 {
                     Puts($"Disabling drop for backpack with ID {item.info.itemid}.");
-                    itemsToKeepEquipped.Add(item);  // Keep the backpack equipped, no need to move it
+                    itemsToKeepEquipped.Add(item); // Keep the backpack equipped, no need to move it
                 }
             }
 
             // Ensure backpacks remain equipped without moving them to the main inventory
             foreach (var item in itemsToKeepEquipped)
             {
-                Puts($"Backpack with ID {item.info.itemid} remains equipped in the player's belt or wear slot.");
+                Puts(
+                    $"Backpack with ID {item.info.itemid} remains equipped in the player's belt or wear slot."
+                );
             }
         }
 
         private void OnPlayerRespawned(BasePlayer player)
         {
-            if (player == null || !player.userID.IsSteamId()) return;
+            if (player == null || !player.userID.IsSteamId())
+                return;
 
             // Remove starting Rock and Torch from both belt and wear
             StripContainer(player.inventory.containerBelt);
@@ -122,28 +149,29 @@ namespace Oxide.Plugins
             RestorePlayerInventory(player);
         }
 
-        // Function to remove all items from a container (e.g., belt or wear)
+        // Remove all items from a container (e.g., belt or wear)
         private void StripContainer(ItemContainer container)
         {
             for (int i = container.itemList.Count - 1; i >= 0; i--)
             {
                 var item = container.itemList[i];
-                item.RemoveFromContainer();  // Remove from the container
-                item.Remove();               // Delete the item
+                item.RemoveFromContainer();
+                item.Remove();
             }
         }
 
         // Handle active item drop based on config
         private object CanDropActiveItem(BasePlayer player)
         {
-            if (player == null || !player.userID.IsSteamId()) return null;
+            if (player == null || !player.userID.IsSteamId())
+                return null;
 
             if (!config.DropHeldItemOnDeath)
             {
-                return false;  // Prevent the active item from being dropped
+                return false;
             }
 
-            return null;  // Allow the default behavior (drop item)
+            return null;
         }
 
         #endregion
@@ -157,8 +185,13 @@ namespace Oxide.Plugins
 
             [JsonProperty("Restore Inventory on Suicide")]
             public bool RestoreOnSuicide { get; set; } = true;
+
             [JsonProperty("Restore Backpacks on Death")]
             public bool RestoreBackpacksOnDeath { get; set; } = true;
+
+            [JsonProperty("Restore Inventory on Wipe")]
+            public bool RestoreInventoryOnWipe { get; set; } = false;
+
         }
 
         protected override void LoadConfig()
@@ -167,29 +200,32 @@ namespace Oxide.Plugins
             try
             {
                 config = Config.ReadObject<PluginConfig>();
-                if (config == null)  // Check if config is null
+                if (config == null)
                 {
                     PrintError("Config is null, loading default configuration.");
-                    LoadDefaultConfig();  // Load defaults if the config is null
+                    LoadDefaultConfig();
                 }
             }
             catch
             {
                 PrintError("Error reading configuration file! Generating new config.");
-                LoadDefaultConfig();  // Generate a default config if there's an error
+                LoadDefaultConfig();
             }
         }
 
         protected override void SaveConfig() => Config.WriteObject(config, true);
+
         protected override void LoadDefaultConfig()
         {
             config = new PluginConfig
             {
                 DropHeldItemOnDeath = false,
                 RestoreOnSuicide = true,
-                RestoreBackpacksOnDeath = true  // Set the default value for restoring backpacks
+                RestoreBackpacksOnDeath = true,
+                RestoreInventoryOnWipe = true
             };
         }
+
         #endregion
 
         #region Data Management
@@ -199,16 +235,21 @@ namespace Oxide.Plugins
             Puts("Loading inventory data...");
 
             inventoryDataFile = Interface.Oxide.DataFileSystem.GetFile(DataDirectory);
-            playerInventories = inventoryDataFile.ReadObject<Dictionary<ulong, PlayerInventoryData>>() ?? new Dictionary<ulong, PlayerInventoryData>();
-
-            Puts($"Loaded {playerInventories.Count} player inventories.");
+            playerInventories =
+                inventoryDataFile.ReadObject<Dictionary<ulong, PlayerInventoryData>>()
+                ?? new Dictionary<ulong, PlayerInventoryData>();
 
             if (wipeDataOnWipe)
             {
-                Puts("Wipe detected, clearing inventory data.");
+                Puts("Clearing inventory data due to wipe + config setting.");
                 playerInventories.Clear();
+                inventoryDataFile.Clear();
+                inventoryDataFile.Save();
             }
+
+            Puts($"Loaded {playerInventories.Count} player inventories.");
         }
+
 
         private void SaveData()
         {
@@ -221,7 +262,7 @@ namespace Oxide.Plugins
             {
                 main = GetItemList(player.inventory.containerMain),
                 belt = GetItemList(player.inventory.containerBelt),
-                wear = GetItemList(player.inventory.containerWear)
+                wear = GetItemList(player.inventory.containerWear),
             };
 
             playerInventories[player.userID] = inventoryData;
@@ -252,84 +293,150 @@ namespace Oxide.Plugins
         #region Helper Functions
         private void RestoreItemList(ItemContainer container, List<ItemData> items)
         {
+            if (container == null || items == null) return;
+
+            // 🧼 Clear container first to avoid duplication
+            foreach (var existing in container.itemList.ToList())
+            {
+                existing.RemoveFromContainer();
+                existing.Remove();
+            }
+
             foreach (var itemData in items)
             {
-                // Create the item
                 var item = ItemManager.CreateByItemID(itemData.itemId, itemData.amount, itemData.skin);
-                item.condition = itemData.condition;
-                item.maxCondition = itemData.maxCondition;  // Restore max condition
-                item.MoveToContainer(container, itemData.position);
+                if (item == null) continue;
 
-                // Restore text and display name
+                item.condition = itemData.condition;
+                item.maxCondition = itemData.maxCondition;
+                item.position = itemData.position;
                 item.text = itemData.itemText;
                 item.name = itemData.displayName;
-
-                // Restore instance data if present
-                if (itemData.instanceData?.IsValid() ?? false)
-                {
-                    itemData.instanceData.Restore(item);
-                }
-
-                // Restore item flags
                 item.flags |= itemData.flags;
 
-                // Restore mods (attachments)
+                // Restore instance data (EpicLoot blueprint/stats)
+                if (itemData.instanceData?.IsValid() ?? false)
+                    itemData.instanceData.Restore(item);
+
+                // Move item to target container
+                item.MoveToContainer(container, itemData.position);
+
+                // 🔧 Restore mods (attachments like weapon mods)
                 if (itemData.mods != null && item.contents != null)
                 {
                     foreach (var modData in itemData.mods)
                     {
                         var modItem = ItemManager.CreateByItemID(modData.itemId, modData.amount);
+                        if (modItem == null) continue;
+
                         modItem.condition = modData.condition;
                         modItem.MoveToContainer(item.contents);
+                        modItem.MarkDirty();
                     }
                 }
 
-                // Check if item has nested contents (e.g., backpacks)
+                // 🧰 Clear item.contents before restoring nested contents
+                if (item.contents != null)
+                {
+                    foreach (var existing in item.contents.itemList.ToList())
+                    {
+                        existing.RemoveFromContainer();
+                        existing.Remove();
+                    }
+                }
+
+                // 🔁 Restore nested contents (backpacks, boxes, etc.)
                 if (itemData.contents != null && item.contents != null)
                 {
-                    // Restore nested contents only if they are not already in the container
-                    if (!item.contents.itemList.Any())  // Ensure the container is empty before restoring
+                    foreach (var contentData in itemData.contents)
                     {
-                        foreach (var contentData in itemData.contents)
+                        var contentItem = ItemManager.CreateByItemID(contentData.itemId, contentData.amount, contentData.skin);
+                        if (contentItem == null) continue;
+
+                        contentItem.condition = contentData.condition;
+                        contentItem.maxCondition = contentData.maxCondition;
+                        contentItem.position = contentData.position;
+                        contentItem.text = contentData.itemText;
+                        contentItem.name = contentData.displayName;
+                        contentItem.flags |= contentData.flags;
+
+                        if (contentData.instanceData?.IsValid() ?? false)
+                            contentData.instanceData.Restore(contentItem);
+
+                        contentItem.MoveToContainer(item.contents);
+
+                        // 🧼 Clean contents before deeper nested restore
+                        if (contentItem.contents != null)
                         {
-                            var contentItem = ItemManager.CreateByItemID(contentData.itemId, contentData.amount, contentData.skin);
-                            contentItem.condition = contentData.condition;
-                            contentItem.MoveToContainer(item.contents);
+                            foreach (var existing in contentItem.contents.itemList.ToList())
+                            {
+                                existing.RemoveFromContainer();
+                                existing.Remove();
+                            }
                         }
+
+                        // 🔁 Recursively restore deeper nested contents
+                        if (contentData.contents != null && contentItem.contents != null)
+                        {
+                            foreach (var subContent in contentData.contents)
+                            {
+                                var subItem = ItemManager.CreateByItemID(subContent.itemId, subContent.amount, subContent.skin);
+                                if (subItem == null) continue;
+
+                                subItem.condition = subContent.condition;
+                                subItem.maxCondition = subContent.maxCondition;
+                                subItem.position = subContent.position;
+                                subItem.text = subContent.itemText;
+                                subItem.name = subContent.displayName;
+                                subItem.flags |= subContent.flags;
+
+                                if (subContent.instanceData?.IsValid() ?? false)
+                                    subContent.instanceData.Restore(subItem);
+
+                                subItem.MoveToContainer(contentItem.contents);
+                                subItem.MarkDirty();
+                            }
+                        }
+
+                        contentItem.MarkDirty();
                     }
                 }
 
-                // Restore Ammo
+                // 🔫 Restore ammo if it's a weapon
                 if (item.GetHeldEntity() is BaseProjectile projectile)
                 {
                     projectile.primaryMagazine.contents = itemData.ammo;
                     projectile.primaryMagazine.ammoType = ItemManager.FindItemDefinition(itemData.ammoType);
                 }
 
-                // Restore RF frequency for RF-enabled items (e.g., pagers)
+                // 📡 Restore RF frequency if it's a pager
                 if (item.GetHeldEntity() is PagerEntity pagerEntity)
                 {
                     pagerEntity.ChangeFrequency(itemData.frequency);
                 }
 
-                // Mark the item as dirty to apply changes
+                // 🎯 Final EpicLoot visual/data re-apply
+                if (!string.IsNullOrEmpty(item.text) || item.instanceData != null)
+                    item.MarkDirty();
+
                 item.MarkDirty();
             }
         }
+
+
+
         private void ReapplyEpicLootProperties(Item item)
         {
-            // Step 1: Ensure that Epic Loot properties are in item.text
+            // Step 1: Verify
             if (!string.IsNullOrEmpty(item.text))
             {
-                // Since all critical buffs, rarity, and enhancements are likely stored in item.text,
-                // simply restoring it should be enough. You don’t need to manually reapply individual buffs here.
-                item.MarkDirty();  // Mark the item as dirty to apply any changes
+                item.MarkDirty();
             }
 
-            // Step 2: If Epic Loot uses `instanceData` for additional buffs or properties, ensure it's restored
+            // Step 2: Restore
             if (item.instanceData != null)
             {
-                item.MarkDirty();  // Mark the item as dirty to ensure any changes are applied
+                item.MarkDirty();
             }
         }
 
@@ -359,6 +466,7 @@ namespace Oxide.Plugins
             }
             Puts($"Corpse items for {corpse.playerName} have been deleted.");
         }
+
         private void EnableBackpackDropOnDeath(int itemId, bool enabled)
         {
             var itemDef = ItemManager.FindItemDefinition(itemId);
@@ -392,7 +500,8 @@ namespace Oxide.Plugins
 
         private List<ItemData> GetItemList(ItemContainer container)
         {
-            return container?.itemList.Select(item => new ItemData(item)).ToList() ?? new List<ItemData>();
+            return container?.itemList.Select(item => new ItemData(item)).ToList()
+                ?? new List<ItemData>();
         }
 
         public class ItemData
@@ -407,7 +516,7 @@ namespace Oxide.Plugins
             public string displayName;
             public int ammo;
             public string ammoType;
-            public int frequency;  // RF Frequency
+            public int frequency; // RF Frequency
             public Item.Flag flags;
             public List<ItemModData> mods;
             public List<ItemData> contents;
@@ -428,7 +537,9 @@ namespace Oxide.Plugins
 
                 flags = item.flags;
                 mods = item.contents?.itemList.Select(mod => new ItemModData(mod)).ToList();
-                contents = item.contents?.itemList.Select(contentItem => new ItemData(contentItem)).ToList();
+                contents = item
+                    .contents?.itemList.Select(contentItem => new ItemData(contentItem))
+                    .ToList();
 
                 // Capture ammo for weapons
                 if (item.GetHeldEntity() is BaseProjectile projectile)
@@ -492,6 +603,7 @@ namespace Oxide.Plugins
                 item.instanceData.blueprintAmount = blueprintAmount;
                 item.instanceData.blueprintTarget = blueprintTarget;
                 item.instanceData.dataInt = dataInt;
+
                 item.MarkDirty();
             }
 
@@ -500,6 +612,7 @@ namespace Oxide.Plugins
                 return dataInt != 0 || blueprintAmount != 0 || blueprintTarget != 0;
             }
         }
+
         #endregion
     }
 }

@@ -1,10 +1,12 @@
 NoDrop by CTS Kael
 
-Version: 0.0.8
+Version: 0.1.5
 
 Description:
 
-The NoDrop plugin ensures that player inventories are saved when they die or disconnect, and their items are restored upon respawn without dropping any held items during wounding or death.This plugin is HEAVILY INSPIRED by K1lly0u's Restore Upon Death and aims to more robustly cover gaps missed by it.
+The NoDrop plugin ensures that player inventories are saved when they die or disconnect, and their items are restored upon respawn without dropping any held items during wounding or death.
+
+This plugin is HEAVILY INSPIRED by K1lly0u's Restore Upon Death and aims to more robustly cover gaps missed by it.
 
 Features
 
@@ -14,11 +16,17 @@ No Item Drop: Prevents players from dropping their active item when they are wou
 
 Persistent Inventory: Restores the player's inventory exactly as it was upon their next respawn. Regardless of when they respawn next, allowing for safe disconnects and rage quits.
 
-Handles All Death Types: Works under all death conditions, including suicide, terrain death, flyhack kills, and more.
+Handles All Death Types: Works under all death conditions, including suicide, terrain death, flyhack kills, and more, with configuration
 
-Wipe-Safe: Automatically wipes player inventory data when a new server wipe occurs.
+Wipe-Safe: Automatically wipes player inventory data when a new server wipe occurs, if triggered to do so.
 
 Data Storage: Each player's inventory is saved in individual files located in oxide/data/NoDrop, named after their SteamID.
+
+Epic Loot Supported
+
+Raidable Bases Supported
+
+Bags of Holding Supported
 
 Configuration
 
@@ -32,7 +40,7 @@ Restore Backpacks on Death: true by default (this also prevents backpacks from d
 
 How It Works
 
-On Player Death: When a player dies, their entire inventory (Main, Belt, and Wear) is saved to a user specific file. This ensures the player's items are kept intact and restored on their next respawn, and cant not be cross contaimenated with other players data.
+On Player Death: When a player dies, their entire inventory (Main, Belt, Worn, and Bags) is saved to a user specific file. This ensures the player's items are kept intact and restored on their next respawn, and cant not be cross contaimenated with other players data.
 
 On Disconnect While Alive: If a player disconnects while still alive, their current inventory is saved, preventing loss of items. This is just a fail safe.
 
@@ -42,17 +50,7 @@ Wipe Handling: When a server wipe occurs, all saved player data is wiped as well
 
 Intended Use
 
-If you have ever wanted to have PVP without the grief of losing all your hard earned items, this is for your server! I made this for my own server after several other plugins claiming to do this, failed to perform reliably. I was able to replace SEVERAL PVE plugins with just this little baby. PVEs can feel safe knowing they wont lose anything, and PVPers can still hunt.
-
-Future Improvements
-
-ByPass Flag:
-
-For Events, or Defined zones you may want to allow either Held Items or full inventory drop!
-
-Log File:
-
-To Log players saves. This would be a bit mildly costly to run, but would grant admins a way to verify players error claims. Would be enabled through config.
+If you have ever wanted to have PVP without the grief of losing all your hard earned items, this is for your server!I made this for my own server after several other plugins claiming to do this, failed to perform reliably.I was able to replace SEVERAL PVE plugins with just this little baby.PVERs can feel safe knowing they wont lose anything, and PVPers can still hunt!
 
 License
 
@@ -64,4 +62,19 @@ Updates
 
 0.0.5 - Added support for Backpacks and Weapon Attachments
 
-0.0.8 - Support for Epic Loot, Bags of Holding, likely any other plugin like that as well. Fixed Backpack Dupe.
+0.0.8 - Support for Epic Loot,Fixed Backpack Dupe.
+
+0.0.9 - Updated for Epic Loot changes, Added Bag of Holding support
+
+0.1.0 - Fixed Backpack and BoH bug
+
+0.1.1 - Added Wipe Options - In Testing
+
+0.1.2 - Removed Suicide backpack duping
+
+0.1.3 - Added Raidable Bases support
+
+0.1.4 - Added Armor Insert support
+
+0.1.5 - Patched Backpacks to save containers content inside them as well
+

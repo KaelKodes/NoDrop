@@ -1,6 +1,8 @@
 NoDrop by CTS Kael
 
 Version: 0.1.5
+BE SURE TO DOWNLOAD LATEST RELEASE
+https://github.com/KaelKodes/NoDrop/releases/tag/v0.1.5
 
 Description:
 

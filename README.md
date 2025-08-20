@@ -2,13 +2,16 @@ NoDrop by CTS Kael
 
 Version: 0.1.5
 BE SURE TO DOWNLOAD LATEST RELEASE
+
 https://github.com/KaelKodes/NoDrop/releases/tag/v0.1.5
+
 
 Description:
 
 The NoDrop plugin ensures that player inventories are saved when they die or disconnect, and their items are restored upon respawn without dropping any held items during wounding or death.
 
 This plugin is HEAVILY INSPIRED by K1lly0u's Restore Upon Death and aims to more robustly cover gaps missed by it.
+
 
 Features
 
@@ -30,6 +33,7 @@ Raidable Bases Supported
 
 Bags of Holding Supported
 
+
 Configuration
 
 No Drop allows for the following configureable settings:
@@ -39,6 +43,8 @@ Drop Held Item on Death: false by default
 Restore Inventory On Suicide: true by defualt
 
 Restore Backpacks on Death: true by default (this also prevents backpacks from dropping during the wounded phase)
+
+
 
 How It Works
 
@@ -50,13 +56,17 @@ Inventory Restoration: Upon respawn, if a player has saved inventory data, it is
 
 Wipe Handling: When a server wipe occurs, all saved player data is wiped as well, ensuring no old inventory data persists across wipes.
 
+
 Intended Use
 
 If you have ever wanted to have PVP without the grief of losing all your hard earned items, this is for your server!I made this for my own server after several other plugins claiming to do this, failed to perform reliably.I was able to replace SEVERAL PVE plugins with just this little baby.PVERs can feel safe knowing they wont lose anything, and PVPers can still hunt!
 
+
 License
 
 This project is licensed under the Apache license 2.0
+
+
 
 Updates
 

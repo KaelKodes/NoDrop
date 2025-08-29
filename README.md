@@ -1,14 +1,16 @@
 NoDrop by CTS Kael
+---
 
 Version: 0.1.5
 BE SURE TO DOWNLOAD LATEST RELEASE
 
 https://github.com/KaelKodes/NoDrop/releases/tag/v0.1.5
 
----
+
 
 
 Description:
+---
 
 The NoDrop plugin ensures that player inventories are saved when they die or disconnect, and their items are restored upon respawn without dropping any held items during wounding or death.
 
